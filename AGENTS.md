@@ -24,7 +24,7 @@
 
 ## Markdown (SKILL.md)
 
-- YAML frontmatter: `name`, `description`, `allowed-tools`, `metadata`
+- YAML frontmatter: `name`, `description`, `compatibility`, `allowed-tools`, `metadata`
 - One blank line between sections
 - Fenced code blocks with language tag
 - Tables for structured reference data

@@ -22,7 +22,7 @@ Based on the [agentskills.io specification](https://agentskills.io/specification
 ```text
 skill-name/
 ├── SKILL.md           # Required: metadata + instructions
-├── references/        # Optional: detailed docs loaded on demand
+├── REFERENCE.md       # Optional: detailed docs loaded on demand
 ├── scripts/           # Optional: deterministic operations
 └── assets/            # Optional: templates, schemas
 ```
@@ -56,7 +56,7 @@ metadata:
 [Non-obvious facts that prevent common mistakes]
 
 ## Advanced
-[See [REFERENCE.md](references/REFERENCE.md)]
+[See [REFERENCE.md](REFERENCE.md)]
 ```
 
 ## Description

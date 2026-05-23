@@ -48,9 +48,9 @@ Helps with commits.
 
 ## Installation
 
-Skills are installed via `npx skills`:
+Skills are installed via `bunx skills`:
 
 ```bash
-npx skills add rsturla/skills -g        # global
-npx skills add rsturla/skills --list     # preview
+bunx skills add rsturla/skills -g        # global
+bunx skills add rsturla/skills --list     # preview
 ```
