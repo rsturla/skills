@@ -1,0 +1,10 @@
+{
+  "name": "rsturla-skills",
+  "skills": [
+    "./skills/vertex-ai",
+    "./skills/commit-message",
+    "./skills/new-worktree",
+    "./skills/write-a-skill",
+    "./skills/openshift-troubleshoot"
+  ]
+}
