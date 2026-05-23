@@ -2,7 +2,7 @@
 
 ## Formatting & Tooling
 
-- `rustfmt` defaults — don't customize. 4-space indent, 100-char lines.
+- `rustfmt` defaults — don't customize. 4-space indent.
 - `clippy` with pedantic lints enabled (see Linting section)
 - Run `cargo fmt --check` and `clippy --workspace -- -D warnings` in CI
 
@@ -103,6 +103,9 @@ Traits are Rust's primary extensibility mechanism. Use them for pluggable backen
 ### Design for Pluggability
 
 The same trait should support production backends, local development, and testing — all as first-class implementations.
+
+Native async traits (Rust 2024 edition) remove the need for `#[async_trait]` in most cases. Use `async_trait` only
+when you need `dyn Trait` dispatch.
 
 ```rust
 // src/storage/mod.rs — trait defined by the consumer

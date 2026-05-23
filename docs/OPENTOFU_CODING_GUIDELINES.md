@@ -43,7 +43,8 @@ infrastructure/
 - **Outputs**: `{name}_{type}_{attribute}` — e.g. `private_subnet_ids`, `security_group_id`
 - **Files**: `main.tf`, `variables.tf`, `outputs.tf`, `versions.tf` (required). Split by component only when files
   exceed ~200 lines.
-- **Env vars**: use `OPENTOFU_VAR_` prefix, not `TF_VAR_`
+- **Env vars**: use `OPENTOFU_VAR_` prefix (preferred, takes precedence). `TF_VAR_` also works for legacy
+  compatibility.
 
 ```hcl
 # Good

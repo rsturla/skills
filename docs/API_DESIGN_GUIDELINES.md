@@ -63,9 +63,9 @@ Common errors:
 | 429 | Rate limited |
 | 500 | Server error (never leak internals) |
 
-### Error Format (RFC 7807)
+### Error Format (RFC 9457)
 
-Use [Problem Details for HTTP APIs](https://www.rfc-editor.org/rfc/rfc7807):
+Use [Problem Details for HTTP APIs](https://www.rfc-editor.org/rfc/rfc9457):
 
 ```json
 {
