@@ -27,6 +27,8 @@ bunx skills add rsturla/skills --list
 | `write-docs` | Write clear, structured technical documentation with consistent conventions |
 | `investigate-cve` | Trace CVE to upstream fix commits, check backport status across branches |
 | `dependency-audit` | Audit deps for vulnerabilities, license issues, and supply chain risks |
+| `security-review` | Multi-agent security review — injection, auth, secrets, supply chain |
+| `code-review` | Multi-agent code review — architecture, correctness, style, conventions |
 
 ## Recommended Third-Party Skills
 

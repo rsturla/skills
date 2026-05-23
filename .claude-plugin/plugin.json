@@ -8,6 +8,8 @@
     "./skills/openshift-troubleshoot",
     "./skills/write-docs",
     "./skills/investigate-cve",
-    "./skills/dependency-audit"
+    "./skills/dependency-audit",
+    "./skills/security-review",
+    "./skills/code-review"
   ]
 }
