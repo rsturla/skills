@@ -103,9 +103,9 @@ Prefer stdlib. When stdlib doesn't cover it, use these:
 | YAML | `go.yaml.in/yaml/v4` | `gopkg.in/yaml.v3` is deprecated. v4 for new projects. |
 | JSON | `encoding/json` (stdlib) | Use `json/v2` when it lands in stdlib |
 | SQL | `database/sql` (stdlib) | With driver packages (`pgx`, `go-sqlite3`) |
-| CLI | `github.com/spf13/cobra` | Or stdlib `flag` for simple tools |
+| CLI (subcommands) | `github.com/spf13/cobra` | Only when you need subcommands. Use stdlib `flag` for single-command tools. |
 | Errors | `fmt.Errorf` with `%w` (stdlib) | No error libraries needed |
-| Config | `github.com/knadh/koanf` | Multi-source, struct-based config |
+| Config (multi-source) | `github.com/knadh/koanf` | Only when merging env + file + defaults. For single YAML file, just unmarshal directly. |
 
 ### Avoid
 
