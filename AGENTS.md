@@ -57,6 +57,8 @@
 - **Languages** (order of preference): Go → Rust → Python
 - **IaC**: OpenTofu + Terragrunt, never Terraform
 - **JS/TS runtime**: Bun, never npm/yarn/pnpm
+- **LLM APIs**: Vertex AI only (GCP project `itpc-gcp-core-pe-eng-claude`). No direct Anthropic API, OpenAI, Copilot,
+  or other LLM provider access. Always use the Vertex AI rawPredict endpoint. See the `vertex-ai` skill for details.
 - **Shell**: bash for scripts
 - **Package installs**: NEVER run any system package manager (`dnf`, `brew`, `apt`, `yum`, `pacman`, `zypper`, etc.).
   If a tool is missing, ask the user to provide it.
