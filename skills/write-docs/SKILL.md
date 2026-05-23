@@ -4,12 +4,22 @@ description: >
   Write clear, structured technical documentation. README files, usage guides, API docs, and contributor docs with
   consistent voice and formatting. Use when the user needs to write or improve documentation — even if they just say
   "add a README" or "document this."
+allowed-tools:
+  - Read
+  - Write
 metadata:
   author: rsturla
   version: 1.0.0
 ---
 
 # Documentation Writing Guide
+
+## Process
+
+1. Read existing docs to understand current state
+1. Outline sections following what→how→reference principle
+1. Draft content following voice and formatting rules
+1. Review against gotchas checklist
 
 ## Voice and Tone
 

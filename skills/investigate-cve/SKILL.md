@@ -21,11 +21,10 @@ Given a CVE ID, trace it to upstream fix commits and check backport status.
 ## Workflow
 
 1. **OSV.dev** — structured fix data (try first)
-2. **NVD** — references and patch links
-3. **Debian Security Tracker** — frequently lists fix commits in notes
-4. **Red Hat Security API** — advisory context
-5. **Upstream git log** — fallback when APIs lack fix commits
-6. **Backport check** — verify fix reached relevant LTS/release branches
+1. **NVD** — references and patch links
+1. **Debian Security Tracker** — frequently lists fix commits in notes
+1. **Red Hat Security API** — advisory context
+1. **Upstream git search + backport check** — see [REFERENCE.md](REFERENCE.md)
 
 ## Step 1: Query OSV.dev
 
@@ -61,16 +60,19 @@ curl -s "https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=<cve_id>" | jq '
 
 Look for references tagged `Patch`, `Third Party Advisory`, or URLs containing `commit`, `pull`, `patch`.
 
+NVD rate-limits unauthenticated requests to 5 per 30 seconds. If hitting limits, request a free API key at
+<https://nvd.nist.gov/developers/request-an-api-key> and pass it as `?apiKey=<key>` query parameter.
+
 ## Step 3: Check Debian Security Tracker
 
 Debian's CVE list frequently contains upstream fix commit URLs in `NOTE:` lines. Clone the tracker repo and grep locally:
 
 ```bash
 # Clone once (reuse for subsequent queries)
-git clone --depth 1 https://salsa.debian.org/security-tracker-team/security-tracker.git /tmp/debian-tracker
+git clone --depth 1 https://salsa.debian.org/security-tracker-team/security-tracker.git ~/.cache/debian-security-tracker
 
 # Search for CVE
-grep -A 15 "^<cve_id>" /tmp/debian-tracker/data/CVE/list | head -20
+grep -A 15 "^<cve_id>" ~/.cache/debian-security-tracker/data/CVE/list | head -20
 ```
 
 Look for:
@@ -80,7 +82,7 @@ Look for:
 - Fixed package versions per Debian release (e.g. `- node-postcss 8.5.12+~cs9.3.32-1`)
 - Status per release: `<no-dsa>`, `<postponed>`, `<not-affected>`
 
-If the clone already exists, `git -C /tmp/debian-tracker pull` to update.
+If the clone already exists, `git -C ~/.cache/debian-security-tracker pull` to update.
 
 ## Step 4: Query Red Hat Security API
 
@@ -101,46 +103,7 @@ Key fields:
 - `affected_release[].package` — packages with fixes shipped
 - `package_state[].fix_state` — "Fixed", "Not affected", "Will not fix"
 
-## Step 5: Search Upstream Git
-
-When APIs don't return fix commits, clone and search the upstream repo.
-
-```bash
-git log --all --oneline --grep="<cve_id>"
-```
-
-If no results, try searching for the fix description keywords:
-
-```bash
-git log --all --oneline --grep="<vulnerability_keyword>" --since="<disclosure_date>"
-```
-
-## Step 6: Check Backport Status
-
-Once you have the fix commit SHA, check which branches include it:
-
-```bash
-git branch -r --contains <fix_commit_sha>
-```
-
-If the relevant LTS/stable branch is missing, check for backports:
-
-```bash
-# Check for cherry-picks (standard trailer)
-git log --all --oneline --grep="cherry picked from commit <fix_commit_sha>"
-
-# If no cherry-pick found, check if the fix is already in the code
-# Compare the fixed lines against the target branch
-git show <fix_commit_sha> -- <affected_files>   # see what changed
-git show <target_branch>:<affected_file>         # see current state on target branch
-
-# If the fix is present, find who applied it
-git log -1 --format="%H %s" <target_branch> -- <affected_files>
-git blame <target_branch> -- <affected_file> | grep "<fixed_line>"
-
-# Fallback: search by commit message keywords
-git log --oneline <target_branch> --grep="<fix_summary_keywords>" --since="<fix_date>"
-```
+See [REFERENCE.md](REFERENCE.md) for upstream git search and backport detection.
 
 ## Output Format
 
@@ -162,7 +125,6 @@ Present findings as:
 
 ## Gotchas
 
-- NVD rate-limits unauthenticated requests to 5/30s. Add `apiKey` param if hitting limits.
 - OSV.dev is best for open-source ecosystems but may lack data for proprietary or niche packages.
 - Red Hat API returns "Will not fix" for CVEs in EOL products — don't confuse with "not affected".
 - `git branch --contains` requires a full clone, not shallow. Use `--unshallow` if needed.
