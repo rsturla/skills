@@ -7,6 +7,7 @@
     "./skills/write-a-skill",
     "./skills/openshift-troubleshoot",
     "./skills/write-docs",
-    "./skills/investigate-cve"
+    "./skills/investigate-cve",
+    "./skills/dependency-audit"
   ]
 }

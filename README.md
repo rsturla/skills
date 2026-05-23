@@ -26,6 +26,7 @@ bunx skills add rsturla/skills --list
 | `openshift-troubleshoot` | Diagnose OpenShift issues — pod failures, SCCs, networking, storage, operators |
 | `write-docs` | Write clear, structured technical documentation with consistent conventions |
 | `investigate-cve` | Trace CVE to upstream fix commits, check backport status across branches |
+| `dependency-audit` | Audit deps for vulnerabilities, license issues, and supply chain risks |
 
 ## Recommended Third-Party Skills
 
