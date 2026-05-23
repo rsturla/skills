@@ -90,8 +90,31 @@ import (
 
 - Minimal third-party dependencies — prefer stdlib
 - Justify every external dependency: does stdlib really not cover this?
-- Acceptable common deps: `slog` (stdlib), `net/http` (stdlib), `database/sql` (stdlib)
 - Pin dependencies with exact versions in `go.mod`
+
+### Recommended Libraries
+
+Prefer stdlib. When stdlib doesn't cover it, use these:
+
+| Category | Package | Notes |
+| -------- | ------- | ----- |
+| HTTP server/router | `net/http` (stdlib) | Enhanced pattern matching in Go 1.22+ |
+| Logging | `log/slog` (stdlib) | Default for all projects. JSON in prod, text in dev. |
+| YAML | `go.yaml.in/yaml/v4` | `gopkg.in/yaml.v3` is deprecated. v4 for new projects. |
+| JSON | `encoding/json` (stdlib) | Use `json/v2` when it lands in stdlib |
+| SQL | `database/sql` (stdlib) | With driver packages (`pgx`, `go-sqlite3`) |
+| CLI | `github.com/spf13/cobra` | Or stdlib `flag` for simple tools |
+| Errors | `fmt.Errorf` with `%w` (stdlib) | No error libraries needed |
+| Config | `github.com/knadh/koanf` | Multi-source, struct-based config |
+
+### Avoid
+
+| Package | Why | Replacement |
+| ------- | --- | ----------- |
+| `gopkg.in/yaml.v3` | Deprecated (April 2025) | `go.yaml.in/yaml/v4` |
+| `gopkg.in/yaml.v2` | Deprecated | `go.yaml.in/yaml/v4` |
+| `logrus` | Maintenance mode, no new features | `log/slog` |
+| `gin` / `echo` / `fiber` | Usually unnecessary — stdlib router is sufficient | `net/http` |
 
 ## Testing
 
