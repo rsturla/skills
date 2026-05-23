@@ -11,6 +11,7 @@ allowed-tools:
   - Bash(glab *)
   - Bash(grep *)
   - Bash(find *)
+  - Read
   - Agent
 metadata:
   author: rsturla
@@ -60,7 +61,8 @@ CHANGED_FILES=$($DIFF_CMD --name-only)
 
 ## Step 2: Launch Specialized Agents
 
-Launch **3 agents in parallel** using the Agent tool. Each gets the full diff and changed file list.
+Launch **3 agents in parallel** using the Agent tool. Include the full diff output and changed file list in each
+agent's prompt. For CRITICAL/HIGH findings, instruct agents to Read the surrounding file context before finalizing.
 
 ### Agent 1: Injection & Input Validation
 
@@ -86,6 +88,7 @@ Prompt:
 > - Hardcoded credentials, API keys, tokens, passwords in source code
 > - Missing authentication checks on endpoints/handlers
 > - Broken access control (missing authorization after authentication)
+> - IDOR (user A accessing user B's resources via predictable IDs without ownership check)
 > - Insecure session handling (predictable tokens, missing expiry)
 > - Secrets in logs (logging sensitive fields, request/response bodies with credentials)
 > - Weak cryptography (MD5, SHA1 for passwords, ECB mode, hardcoded IVs)
@@ -139,3 +142,5 @@ Merge all agent results into a single report, deduplicate, and sort by severity.
 - False positives are expected. Each finding should be verified before acting.
 - `gh pr diff` / `glab mr diff` require authenticated CLI and a PR/MR context. Falls back to branch diff if unavailable.
 - Supply chain agent is most useful when `go.sum`, `Cargo.lock`, or `requirements.txt` are in the diff.
+- If the `dependency-audit` skill is available, delegate deep supply chain analysis to it and keep Agent 3 lightweight.
+- If running alongside `code-review`, this skill owns security findings. Let code-review focus on design and correctness.

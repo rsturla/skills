@@ -63,11 +63,13 @@ Detect from changed files:
 - `Containerfile` → apply Containerfile Guidelines
 - `.yml`, `.yaml` in `.github/workflows/` → apply GitHub Actions Guidelines
 
-Read the relevant guidelines doc before launching agents. Pass the guidelines content to each agent.
+Read the relevant guidelines by following the links in the Language Guides section of AGENTS.md (already in your
+context). Pass the guidelines content to each agent so they can check against project conventions.
 
 ## Step 3: Launch Specialized Agents
 
-Launch **3 agents in parallel** using the Agent tool. Each gets the full diff, changed files, and relevant guidelines.
+Launch **3 agents in parallel** using the Agent tool. Include the full diff output, changed file list, and relevant
+guidelines content in each agent's prompt.
 
 ### Agent 1: Architecture & Design
 
@@ -82,7 +84,7 @@ Prompt:
 > - Missing abstractions: should a new interface be introduced for pluggability?
 > - Over-engineering: unnecessary abstractions, premature generalization, dead code
 >
-> Reference these project conventions: `<insert relevant guidelines>`
+> Reference the project conventions loaded in Step 2.
 > For each finding: file, line, issue, suggestion.
 
 ### Agent 2: Correctness & Edge Cases
@@ -113,7 +115,7 @@ Prompt:
 > - Commit hygiene: is this one logical change or multiple changes mixed together?
 > - API design: follows project API guidelines? Consistent with existing endpoints?
 >
-> Reference these project conventions: `<insert relevant guidelines>`
+> Reference the project conventions loaded in Step 2.
 > For each finding: file, line, convention violated, suggestion.
 
 ## Step 4: Consolidate Findings
@@ -150,3 +152,6 @@ Merge all agent results. Categorize and sort:
 - For large diffs (>500 lines), consider reviewing file-by-file instead of the full diff.
 - "Must Fix" vs "Should Fix" vs "Consider" is subjective. Calibrate based on team norms.
 - The style agent needs the project's AGENTS.md/CLAUDE.md conventions. Read them first.
+- If running alongside `security-review`, skip security-adjacent findings (secrets, auth, injection) and focus on
+  design, correctness, and conventions.
+- Performance issues (O(n^2) loops, N+1 queries, missing pagination) fall under Agent 2 (Correctness).
