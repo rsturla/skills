@@ -38,7 +38,7 @@ feat: add database connection pool and migrations
 ## Commit Message Rules
 
 - **Format**: Conventional Commits (`feat`/`fix`/`refactor`/`docs`/`test`/`chore`/`ci`/`build`/`perf`/`style`)
-- **Subject**: imperative mood, max 50 chars, no trailing period
+- **Subject**: imperative mood, lowercase after prefix, max 50 chars, no trailing period
 - **Body**: bullet points for non-trivial changes, each line max 72 chars
 - **Trivial changes**: subject only, no body
 

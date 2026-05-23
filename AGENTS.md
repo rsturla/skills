@@ -33,7 +33,7 @@
 ## Git
 
 - Conventional Commits: `feat`/`fix`/`refactor`/`docs`/`test`/`chore`/`ci`/`build`/`perf`/`style`
-- Imperative mood in subject line
+- Imperative mood in subject line, lowercase after prefix (`feat: add thing` not `feat: Add thing`)
 - No trailing period on subject
 - Body explains why, not what
 - **Atomic commits** — one logical change per commit, each commit should build and pass tests independently
