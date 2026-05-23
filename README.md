@@ -24,6 +24,7 @@ bunx skills add rsturla/skills --list
 | `new-worktree` | Create git worktrees with conventional-commit directory structure, always relative to repo root |
 | `write-a-skill` | Create new agent skills with proper structure and conventions |
 | `openshift-troubleshoot` | Diagnose OpenShift issues — pod failures, SCCs, networking, storage, operators |
+| `write-docs` | Write clear, structured technical documentation with consistent conventions |
 
 ## Recommended Third-Party Skills
 
