@@ -65,6 +65,6 @@
 
 ## Dependencies
 
-- Prefer standard unix tools (`curl`, `jq`, `gcloud`) over language-specific SDKs
-- No node/python runtime dependencies for skills — skills are markdown instructions
-- Git hooks can use bash + curl + jq
+- **In applications**: use proper language SDKs (Go, Rust, Python). Do NOT shell out to `curl`/`jq` from application code.
+- **In skills and git hooks**: use standard unix tools (`curl`, `jq`, `gcloud`, `oc`) since skills are markdown
+  instructions and hooks should avoid runtime dependencies.
