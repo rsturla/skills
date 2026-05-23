@@ -6,6 +6,7 @@
     "./skills/new-worktree",
     "./skills/write-a-skill",
     "./skills/openshift-troubleshoot",
-    "./skills/write-docs"
+    "./skills/write-docs",
+    "./skills/investigate-cve"
   ]
 }

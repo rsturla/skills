@@ -25,6 +25,7 @@ bunx skills add rsturla/skills --list
 | `write-a-skill` | Create new agent skills with proper structure and conventions |
 | `openshift-troubleshoot` | Diagnose OpenShift issues — pod failures, SCCs, networking, storage, operators |
 | `write-docs` | Write clear, structured technical documentation with consistent conventions |
+| `investigate-cve` | Trace CVE to upstream fix commits, check backport status across branches |
 
 ## Recommended Third-Party Skills
 
