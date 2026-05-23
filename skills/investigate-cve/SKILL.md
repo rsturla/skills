@@ -22,9 +22,10 @@ Given a CVE ID, trace it to upstream fix commits and check backport status.
 
 1. **OSV.dev** — structured fix data (try first)
 2. **NVD** — references and patch links
-3. **Red Hat Security API** — advisory context
-4. **Upstream git log** — fallback when APIs lack fix commits
-5. **Backport check** — verify fix reached relevant LTS/release branches
+3. **Debian Security Tracker** — frequently lists fix commits in notes
+4. **Red Hat Security API** — advisory context
+5. **Upstream git log** — fallback when APIs lack fix commits
+6. **Backport check** — verify fix reached relevant LTS/release branches
 
 ## Step 1: Query OSV.dev
 
@@ -60,7 +61,28 @@ curl -s "https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=<cve_id>" | jq '
 
 Look for references tagged `Patch`, `Third Party Advisory`, or URLs containing `commit`, `pull`, `patch`.
 
-## Step 3: Query Red Hat Security API
+## Step 3: Check Debian Security Tracker
+
+Debian's CVE list frequently contains upstream fix commit URLs in `NOTE:` lines. Clone the tracker repo and grep locally:
+
+```bash
+# Clone once (reuse for subsequent queries)
+git clone --depth 1 https://salsa.debian.org/security-tracker-team/security-tracker.git /tmp/debian-tracker
+
+# Search for CVE
+grep -A 15 "^<cve_id>" /tmp/debian-tracker/data/CVE/list | head -20
+```
+
+Look for:
+
+- `NOTE: https://...commit/...` — upstream fix commit (often includes version tag in parentheses)
+- `NOTE: https://...advisories/...` — security advisory with fix details
+- Fixed package versions per Debian release (e.g. `- node-postcss 8.5.12+~cs9.3.32-1`)
+- Status per release: `<no-dsa>`, `<postponed>`, `<not-affected>`
+
+If the clone already exists, `git -C /tmp/debian-tracker pull` to update.
+
+## Step 4: Query Red Hat Security API
 
 ```bash
 curl -s "https://access.redhat.com/hydra/rest/securitydata/cve/<cve_id>.json" | jq '{
@@ -79,7 +101,7 @@ Key fields:
 - `affected_release[].package` — packages with fixes shipped
 - `package_state[].fix_state` — "Fixed", "Not affected", "Will not fix"
 
-## Step 4: Search Upstream Git
+## Step 5: Search Upstream Git
 
 When APIs don't return fix commits, clone and search the upstream repo.
 
@@ -93,7 +115,7 @@ If no results, try searching for the fix description keywords:
 git log --all --oneline --grep="<vulnerability_keyword>" --since="<disclosure_date>"
 ```
 
-## Step 5: Check Backport Status
+## Step 6: Check Backport Status
 
 Once you have the fix commit SHA, check which branches include it:
 
