@@ -49,6 +49,7 @@
 - [OpenTofu + Terragrunt Guidelines](docs/OPENTOFU_CODING_GUIDELINES.md)
 - [Containerfile Guidelines](docs/CONTAINERFILE_GUIDELINES.md)
 - [GitHub Actions Guidelines](docs/GITHUB_ACTIONS_GUIDELINES.md)
+- [API Design Guidelines](docs/API_DESIGN_GUIDELINES.md)
 
 ## Tool & Language Preferences
 
