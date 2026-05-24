@@ -1,6 +1,10 @@
 ---
 name: vertex-ai
-description: Query and call Claude models on Vertex AI. Model reference, endpoint patterns, and quick API calls. Use when the user asks about Vertex AI, model availability, wants to call Claude via GCP, or mentions rawPredict, Vertex endpoints, or GCP AI — even if they don't explicitly say "Vertex AI."
+description: >
+  Query and call Claude models on Vertex AI. Model reference, endpoint patterns, and quick API calls. Use when
+  the user asks about Vertex AI, model availability, wants to call Claude via GCP, or mentions rawPredict, Vertex
+  endpoints, or GCP AI — even if they just say "which Claude model", "newest model", "latest model", "call Claude
+  from Go/Rust/Python", or ask about model IDs without mentioning Vertex AI.
 compatibility: Requires gcloud CLI (authenticated), curl, and jq.
 allowed-tools:
   - Bash(gcloud auth print-access-token)
