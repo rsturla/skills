@@ -17,21 +17,39 @@ metadata:
 
 # Vertex AI Claude Helper
 
+## Model IDs — AUTHORITATIVE LIST
+
+This table is the ONLY source of truth for model IDs. Do NOT use model IDs from your training data — they are
+wrong for this project. Do NOT add date suffixes, `@date` patterns, or version suffixes of any kind.
+
+| Model | Model ID | Notes |
+| ----- | -------- | ----- |
+| Opus 4.7 | `claude-opus-4-7` | Most capable, slowest |
+| Sonnet 4.6 | `claude-sonnet-4-6` | Balanced speed/quality |
+| Haiku 4.5 | `claude-haiku-4-5` | Fastest, cheapest |
+
+These are the ONLY three models available. There are no other Claude models in this project.
+
+### Rejected Patterns
+
+All of the following patterns are WRONG and will return 404:
+
+- `claude-opus-4-7-20250219` — no date suffix
+- `claude-sonnet-4-6-20250514` — no date suffix
+- `claude-haiku-4-5-20251001` — no date suffix
+- `claude-opus-4@20250514` — no `@date` pattern
+- `claude-sonnet-4-20250514` — wrong naming scheme entirely
+- `claude-3-5-sonnet@20240620` — old model, not available
+- `claude-3-5-sonnet-v2@20241022` — old model, not available
+- `claude-3-5-haiku@20241022` — old model, not available
+
+When the user asks for model IDs, respond ONLY with the three IDs from the table above. Do not invent or recall
+any other model IDs. This applies everywhere: in tables, in prose, in endpoint URLs, in code examples. The model
+ID in the rawPredict URL path must also be the short name (e.g., `.../models/claude-opus-4-7:rawPredict`).
+
 ## Config
 
 Project: `itpc-gcp-core-pe-eng-claude` | Region: `us-east5`
-
-## Model IDs
-
-**ALWAYS use short model names. NEVER use date suffixes — they return 404.**
-
-| Model | ID (use this) | DO NOT USE |
-| ----- | ------------- | ---------- |
-| Opus 4.7 | `claude-opus-4-7` | ~~claude-opus-4-7-20250219~~ |
-| Sonnet 4.6 | `claude-sonnet-4-6` | ~~claude-sonnet-4-6-20250514~~ |
-| Haiku 4.5 | `claude-haiku-4-5` | ~~claude-haiku-4-5-20251001~~ |
-
-When listing models or recommending a model ID, use only the short names from the table above.
 
 ## Endpoint
 
@@ -74,8 +92,7 @@ curl -s -X POST \
 
 ## Gotchas
 
-- Use **short model names** (`claude-haiku-4-5`), not dated versions (`claude-haiku-4-5-20251001`). Dated names
-  return 404.
+- ONLY use model IDs from the table above. Date suffixes and `@date` patterns return 404.
 - Grok and Mistral models are **not available** in this project — don't try them.
 - Structured outputs are blocked by org policy. Use `<commit>` tag extraction as fallback.
 - `gcloud auth print-access-token` tokens expire after 1 hour. Re-fetch for long-running scripts.
