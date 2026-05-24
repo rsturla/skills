@@ -50,14 +50,17 @@
 - [Containerfile Guidelines](docs/CONTAINERFILE_GUIDELINES.md)
 - [GitHub Actions Guidelines](docs/GITHUB_ACTIONS_GUIDELINES.md)
 - [API Design Guidelines](docs/API_DESIGN_GUIDELINES.md)
-- [AWS Guidelines](docs/aws/README.md)
+- [AWS Guidelines](docs/aws/README.md) — **read `docs/aws/` before making AWS architecture decisions**
 
 ## Tool & Language Preferences
 
 - **Containers**: podman, never docker. Use `Containerfile`, never `Dockerfile`
+- **Container registry**: Quay, not ECR (ECR only when AWS service requires it)
+- **Kubernetes**: OpenShift (platform-managed), not EKS
+- **Secrets**: Vault (platform-managed), not AWS Secrets Manager/Parameter Store
 - **VCS**: git
 - **Languages** (order of preference): Go → Rust → Python
-- **IaC**: OpenTofu + Terragrunt, never Terraform
+- **IaC**: OpenTofu + Terragrunt, never Terraform. CloudFormation acceptable
 - **JS/TS runtime**: Bun, never npm/yarn/pnpm
 - **LLM APIs**: Vertex AI only (GCP project `itpc-gcp-core-pe-eng-claude`). No direct Anthropic API, OpenAI, Copilot,
   or other LLM provider access. Always use the Vertex AI rawPredict endpoint with the **global** endpoint
