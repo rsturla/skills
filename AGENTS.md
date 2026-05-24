@@ -63,6 +63,9 @@
   (`aiplatform.googleapis.com`, not regional). Model IDs: `claude-opus-4-7`, `claude-sonnet-4-6`,
   `claude-haiku-4-5`. No date suffixes, no `@date` patterns — bare short names only.
   See the `vertex-ai` skill for details.
+- **Telemetry/Observability**: OpenTelemetry only. Instrument with OTel SDK, export via OTLP. When integrating with
+  Datadog, use OTel (DDOT Collector or Agent OTLP ingest) — not Datadog-native SDKs. Only fall back to DD SDK for
+  features that require it (Continuous Profiler, App Security). DD OTLP metrics intake requires **delta** temporality.
 - **Shell**: bash for scripts
 - **Package installs**: NEVER run any system package manager (`dnf`, `brew`, `apt`, `yum`, `pacman`, `zypper`, etc.).
   If a tool is missing, ask the user to provide it.
