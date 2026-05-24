@@ -21,7 +21,17 @@ metadata:
 
 Project: `itpc-gcp-core-pe-eng-claude` | Region: `us-east5`
 
-Use **short model names** without date suffix (e.g. `claude-haiku-4-5`, not `claude-haiku-4-5-20251001`).
+## Model IDs
+
+**ALWAYS use short model names. NEVER use date suffixes — they return 404.**
+
+| Model | ID (use this) | DO NOT USE |
+| ----- | ------------- | ---------- |
+| Opus 4.7 | `claude-opus-4-7` | ~~claude-opus-4-7-20250219~~ |
+| Sonnet 4.6 | `claude-sonnet-4-6` | ~~claude-sonnet-4-6-20250514~~ |
+| Haiku 4.5 | `claude-haiku-4-5` | ~~claude-haiku-4-5-20251001~~ |
+
+When listing models or recommending a model ID, use only the short names from the table above.
 
 ## Endpoint
 
