@@ -6,7 +6,7 @@ allowed-tools:
   - Bash(git diff --cached*)
   - Bash(git log*)
   - Bash(gcloud auth print-access-token)
-  - Bash(curl -s -X POST https://*-aiplatform.googleapis.com/*)
+  - Bash(curl -s -X POST https://aiplatform.googleapis.com/*)
   - Bash(jq *)
 metadata:
   author: rsturla
@@ -57,7 +57,7 @@ Retry with error feedback on failure.
 | Env Var | Default | Description |
 | ------- | ------- | ----------- |
 | `CLAUDE_COMMIT_PROJECT` | `itpc-gcp-core-pe-eng-claude` | GCP project |
-| `CLAUDE_COMMIT_REGION` | `us-east5` | GCP region |
+| `CLAUDE_COMMIT_LOCATION` | `global` | Vertex AI location (use `global` to avoid 10% regional premium) |
 | `CLAUDE_COMMIT_MODEL` | `claude-haiku-4-5` | Model to use |
 | `CLAUDE_COMMIT_RETRIES` | `3` | Max retry attempts |
 

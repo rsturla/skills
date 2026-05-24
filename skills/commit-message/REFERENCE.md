@@ -4,12 +4,12 @@
 
 ```bash
 PROJECT="${CLAUDE_COMMIT_PROJECT:-itpc-gcp-core-pe-eng-claude}"
-REGION="${CLAUDE_COMMIT_REGION:-us-east5}"
+LOCATION="${CLAUDE_COMMIT_LOCATION:-global}"
 MODEL="${CLAUDE_COMMIT_MODEL:-claude-haiku-4-5}"
 TOKEN=$(gcloud auth print-access-token)
 
 curl -s -X POST \
-  "https://${REGION}-aiplatform.googleapis.com/v1/projects/${PROJECT}/locations/${REGION}/publishers/anthropic/models/${MODEL}:rawPredict" \
+  "https://aiplatform.googleapis.com/v1/projects/${PROJECT}/locations/${LOCATION}/publishers/anthropic/models/${MODEL}:rawPredict" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json; charset=utf-8" \
   -d "$(jq -n --arg prompt "$PROMPT" '{

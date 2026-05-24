@@ -59,8 +59,9 @@
 - **IaC**: OpenTofu + Terragrunt, never Terraform
 - **JS/TS runtime**: Bun, never npm/yarn/pnpm
 - **LLM APIs**: Vertex AI only (GCP project `itpc-gcp-core-pe-eng-claude`). No direct Anthropic API, OpenAI, Copilot,
-  or other LLM provider access. Always use the Vertex AI rawPredict endpoint. Model IDs: `claude-opus-4-7`,
-  `claude-sonnet-4-6`, `claude-haiku-4-5`. No date suffixes, no `@date` patterns — bare short names only.
+  or other LLM provider access. Always use the Vertex AI rawPredict endpoint with the **global** endpoint
+  (`aiplatform.googleapis.com`, not regional). Model IDs: `claude-opus-4-7`, `claude-sonnet-4-6`,
+  `claude-haiku-4-5`. No date suffixes, no `@date` patterns — bare short names only.
   See the `vertex-ai` skill for details.
 - **Shell**: bash for scripts
 - **Package installs**: NEVER run any system package manager (`dnf`, `brew`, `apt`, `yum`, `pacman`, `zypper`, etc.).

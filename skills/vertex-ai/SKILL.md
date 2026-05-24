@@ -8,7 +8,7 @@ description: >
 compatibility: Requires gcloud CLI (authenticated), curl, and jq.
 allowed-tools:
   - Bash(gcloud auth print-access-token)
-  - Bash(curl -s -X POST https://*-aiplatform.googleapis.com/*)
+  - Bash(curl -s -X POST https://aiplatform.googleapis.com/*)
   - Bash(jq *)
 metadata:
   author: rsturla
@@ -49,12 +49,15 @@ ID in the rawPredict URL path must also be the short name (e.g., `.../models/cla
 
 ## Config
 
-Project: `itpc-gcp-core-pe-eng-claude` | Region: `us-east5`
+Project: `itpc-gcp-core-pe-eng-claude` | Location: `global`
+
+Always use the **global endpoint** — it is cheaper than regional endpoints (no 10% premium) and has better
+availability via dynamic routing.
 
 ## Endpoint
 
 ```text
-POST https://${REGION}-aiplatform.googleapis.com/v1/projects/${PROJECT}/locations/${REGION}/publishers/anthropic/models/${MODEL}:rawPredict
+POST https://aiplatform.googleapis.com/v1/projects/${PROJECT}/locations/global/publishers/anthropic/models/${MODEL}:rawPredict
 Authorization: Bearer $(gcloud auth print-access-token)
 ```
 
@@ -65,7 +68,7 @@ Request body requires `"anthropic_version": "vertex-2023-10-16"`.
 ```bash
 TOKEN=$(gcloud auth print-access-token) && \
 curl -s -X POST \
-  "https://us-east5-aiplatform.googleapis.com/v1/projects/itpc-gcp-core-pe-eng-claude/locations/us-east5/publishers/anthropic/models/${MODEL}:rawPredict" \
+  "https://aiplatform.googleapis.com/v1/projects/itpc-gcp-core-pe-eng-claude/locations/global/publishers/anthropic/models/${MODEL}:rawPredict" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json; charset=utf-8" \
   -d "$(jq -n --arg prompt "$PROMPT" '{
@@ -83,7 +86,7 @@ Parse response: `jq -r '.content[0].text'`
 ```bash
 TOKEN=$(gcloud auth print-access-token) && \
 curl -s -X POST \
-  "https://us-east5-aiplatform.googleapis.com/v1/projects/itpc-gcp-core-pe-eng-claude/locations/us-east5/publishers/anthropic/models/${MODEL}:rawPredict" \
+  "https://aiplatform.googleapis.com/v1/projects/itpc-gcp-core-pe-eng-claude/locations/global/publishers/anthropic/models/${MODEL}:rawPredict" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"anthropic_version":"vertex-2023-10-16","messages":[{"role":"user","content":"hi"}],"max_tokens":8}' \
@@ -93,6 +96,8 @@ curl -s -X POST \
 ## Gotchas
 
 - ONLY use model IDs from the table above. Date suffixes and `@date` patterns return 404.
+- Always use the **global endpoint** (`aiplatform.googleapis.com` with `locations/global`), NOT regional endpoints
+  (`us-east5-aiplatform.googleapis.com`). Regional endpoints have a 10% pricing premium.
 - Grok and Mistral models are **not available** in this project — don't try them.
 - Structured outputs are blocked by org policy. Use `<commit>` tag extraction as fallback.
 - `gcloud auth print-access-token` tokens expire after 1 hour. Re-fetch for long-running scripts.
