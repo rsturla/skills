@@ -55,7 +55,7 @@ This repo includes opinionated coding and platform guidelines in `docs/`. These 
 | [Containerfile](docs/CONTAINERFILE_GUIDELINES.md) | OCI image builds, multi-stage, security |
 | [GitHub Actions](docs/GITHUB_ACTIONS_GUIDELINES.md) | CI/CD workflow conventions |
 | [API Design](docs/API_DESIGN_GUIDELINES.md) | REST/gRPC API conventions |
-| [AWS](docs/AWS_GUIDELINES.md) | AWS platform guidelines — networking, compute, security, cost |
+| [AWS](docs/aws/README.md) | AWS platform guidelines — networking, compute, security, cost |
 
 ## Agent Configuration
 
