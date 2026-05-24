@@ -54,6 +54,8 @@
 
 ## Tool & Language Preferences
 
+Apply only the preferences relevant to the question. Do not list unrelated preferences.
+
 - **Containers**: podman, never docker. Use `Containerfile`, never `Dockerfile`
 - **Container registry**: Quay, not ECR (ECR only when AWS service requires it)
 - **Kubernetes**: OpenShift (platform-managed), not EKS
