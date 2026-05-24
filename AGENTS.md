@@ -50,7 +50,7 @@
 - [Containerfile Guidelines](docs/CONTAINERFILE_GUIDELINES.md)
 - [GitHub Actions Guidelines](docs/GITHUB_ACTIONS_GUIDELINES.md)
 - [API Design Guidelines](docs/API_DESIGN_GUIDELINES.md)
-- [AWS Guidelines](docs/aws/README.md) — **read `docs/aws/` before making AWS architecture decisions**
+- [AWS Guidelines](docs/aws/README.md) — **when asked anything about AWS, read the relevant files in `docs/aws/` first**
 
 ## Tool & Language Preferences
 
