@@ -11,6 +11,7 @@
     "./skills/dependency-audit",
     "./skills/security-review",
     "./skills/code-review",
-    "./skills/scaffold-repo"
+    "./skills/scaffold-repo",
+    "./skills/build-agent"
   ]
 }
