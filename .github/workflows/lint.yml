@@ -23,4 +23,4 @@ jobs:
             AGENTS.md
             README.md
             skills/*/SKILL.md
-            skills/*/REFERENCE.md
+            skills/*/REFERENCE*.md

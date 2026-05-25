@@ -492,6 +492,7 @@ Present the complete file tree and ask user to review before any further work. S
 - **Eval before prompt tuning** — write evals first, then iterate on system prompt. Without evals you are guessing
 
 See also:
+
 - [REFERENCE.md](REFERENCE.md) — retry/rate limits, streaming, tool validation, context management, graceful
   degradation, config/prompt versioning, session security, manual loop, guardrails, multi-agent, OTel, templates
 - [REFERENCE-EVALS.md](REFERENCE-EVALS.md) — scorers, hallucination detection, safety evals, statistical rigor,

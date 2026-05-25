@@ -652,6 +652,7 @@ export function loadPrompt(path = "./prompts/current"): { content: string; versi
 ```
 
 Include `promptVersion` in `AgentResult` and feedback records. This enables:
+
 - Correlating quality metrics with specific prompt versions
 - Rolling back by changing the symlink
 - A/B testing prompt versions using the experiment framework
@@ -934,5 +935,6 @@ Generate config with `bunx biome init`, then customize. If biome version mismatc
 ```
 
 See also:
+
 - [REFERENCE-EVALS.md](REFERENCE-EVALS.md) — scorers, cost tracking, trajectory evaluation, regression detection
 - [REFERENCE-FEEDBACK.md](REFERENCE-FEEDBACK.md) — feedback collection, A/B testing, experiment runner
