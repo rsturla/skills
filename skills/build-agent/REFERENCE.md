@@ -78,6 +78,65 @@ export const MODEL_ID = "llama3.1";
 export function createModel() { return ollama(MODEL_ID); }
 ```
 
+## Extended Thinking
+
+Enable extended thinking for complex reasoning tasks. Configuration is model-aware — Opus uses adaptive
+thinking, Sonnet uses a token budget:
+
+```typescript
+// src/provider.ts
+import { vertex } from "@ai-sdk/google-vertex";
+import type { ProviderV1 } from "ai";
+
+export const MODEL_ID = process.env.MODEL_ID ?? "claude-sonnet-4-6";
+
+export function createModel() {
+  return vertex(MODEL_ID);
+}
+
+export interface ThinkingConfig {
+  enabled: boolean;
+  budgetTokens?: number;
+}
+
+export function getThinkingConfig(modelId: string): ThinkingConfig {
+  if (modelId.includes("opus")) {
+    return { enabled: true };
+  }
+  if (modelId.includes("sonnet")) {
+    return { enabled: true, budgetTokens: 10_000 };
+  }
+  return { enabled: false };
+}
+```
+
+Usage in agent loop:
+
+```typescript
+const thinking = getThinkingConfig(MODEL_ID);
+
+const result = await generateText({
+  model: createModel(),
+  system: config.system,
+  messages,
+  tools,
+  stopWhen: stepCountIs(config.maxSteps),
+  ...(thinking.enabled && {
+    providerOptions: {
+      anthropic: {
+        thinking: { type: "enabled", budgetTokens: thinking.budgetTokens ?? 10_000 },
+      },
+    },
+  }),
+});
+```
+
+When thinking is enabled, some providers reject certain sampling parameters (e.g., `temperature`). Drop
+unsupported parameters rather than sending them and getting a 400 error.
+
+Thinking blocks appear in `result.reasoning` — capture them for debugging and eval trajectory analysis. Cost
+tracking must account for thinking tokens (billed as output tokens on Anthropic).
+
 ## Tool Definition (AI SDK v6)
 
 In v6, `parameters` is renamed to `inputSchema`:
@@ -128,6 +187,71 @@ export function defineTool<TInput extends z.ZodTypeAny, TOutput>(
   });
 }
 ```
+
+## Tool Annotations
+
+Annotate tools with behavioral hints aligned to the
+[MCP protocol](https://modelcontextprotocol.io/specification/2025-06-18/server/tools#annotations). Annotations
+communicate safety and side-effect characteristics to clients and orchestrators:
+
+```typescript
+// src/tools/types.ts
+export interface ToolAnnotations {
+  readOnly?: boolean;
+  destructive?: boolean;
+  idempotent?: boolean;
+  openWorld?: boolean;
+}
+
+export interface AnnotatedToolConfig<TIn extends z.ZodTypeAny> {
+  description: string;
+  inputSchema: TIn;
+  annotations: ToolAnnotations;
+  execute: (input: z.infer<TIn>) => Promise<unknown>;
+}
+```
+
+Apply annotations to every tool:
+
+```typescript
+// src/tools/read-file.ts
+export const readFileTool = defineAnnotatedTool({
+  description: "Read file contents",
+  inputSchema: z.object({
+    path: z.string().describe("Absolute file path"),
+    offset: z.number().int().min(0).default(0).describe("Line offset"),
+    limit: z.number().int().min(1).max(500).default(200).describe("Max lines"),
+  }),
+  annotations: { readOnly: true, destructive: false, idempotent: true, openWorld: false },
+  execute: async ({ path, offset, limit }) => { /* ... */ },
+});
+
+// src/tools/delete-file.ts
+export const deleteFileTool = defineAnnotatedTool({
+  description: "Delete a file",
+  inputSchema: z.object({
+    path: z.string().describe("Absolute file path"),
+  }),
+  annotations: { readOnly: false, destructive: true, idempotent: true, openWorld: false },
+  execute: async ({ path }) => { /* ... */ },
+});
+```
+
+Use annotations at runtime to gate dangerous operations:
+
+```typescript
+// src/tools/index.ts
+export function requiresConfirmation(annotations: ToolAnnotations): boolean {
+  return annotations.destructive === true || annotations.readOnly === false;
+}
+```
+
+| Annotation | Default (nil) | Meaning |
+| ---------- | ------------- | ------- |
+| `readOnly` | assume false | Tool does not modify state |
+| `destructive` | assume true | Tool may cause irreversible changes |
+| `idempotent` | assume false | Safe to retry without side effects |
+| `openWorld` | assume true | Tool interacts with external systems |
 
 ## Manual Agent Loop
 
@@ -261,6 +385,78 @@ async function synthesize(
 }
 ```
 
+## Seed Tool Calls
+
+Pre-load context before the model's first turn. Seed tool calls avoid redundant API calls when the agent
+already has data from a previous step, pipeline, or external system:
+
+```typescript
+// src/agent.ts
+import type { ModelMessage } from "ai";
+
+export interface SeedToolCall {
+  toolName: string;
+  input: Record<string, unknown>;
+  result: unknown;
+}
+
+export function buildSeedMessages(seeds: SeedToolCall[]): ModelMessage[] {
+  if (seeds.length === 0) return [];
+
+  return [
+    {
+      role: "assistant",
+      content: seeds.map((seed) => ({
+        type: "tool-call" as const,
+        toolCallId: crypto.randomUUID(),
+        toolName: seed.toolName,
+        input: seed.input,
+      })),
+    },
+    {
+      role: "tool",
+      content: seeds.map((seed) => ({
+        type: "tool-result" as const,
+        toolCallId: crypto.randomUUID(),
+        toolName: seed.toolName,
+        output: seed.result,
+      })),
+    },
+  ];
+}
+```
+
+Usage — pre-load file contents so the agent starts with context:
+
+```typescript
+const seeds: SeedToolCall[] = [
+  {
+    toolName: "readFile",
+    input: { path: "/src/agent.ts" },
+    result: { ok: true, data: existingFileContents },
+  },
+];
+
+const messages: ModelMessage[] = [
+  ...buildSeedMessages(seeds),
+  { role: "user", content: "Refactor the agent loop to support streaming" },
+];
+
+const result = await generateText({
+  model: createModel(),
+  system: config.system,
+  messages,
+  tools,
+  stopWhen: stepCountIs(config.maxSteps),
+});
+```
+
+Seed calls reduce latency and cost by avoiding a round-trip for data the system already has. Use them for:
+
+- CI agents that already have file contents, logs, or finding details
+- Multi-agent pipelines where one agent's output feeds another
+- Retry scenarios where previous tool results are still valid
+
 ## Guardrails
 
 ### Input Validation
@@ -368,6 +564,34 @@ const result = await withRetry(() =>
   generateText({ model: createModel(), system: config.system, messages, tools,
     stopWhen: stepCountIs(config.maxSteps) }),
 );
+```
+
+### Provider-Specific Retryable Errors
+
+Each provider has different error codes and retry semantics. Tailor retry logic to the provider:
+
+| Provider | Retryable Status Codes | Notes |
+| -------- | --------------------- | ----- |
+| Anthropic (Claude) | 429, 500, 502, 503, 504, 529 | 529 = overloaded, distinct from rate limit |
+| Vertex AI | 429, 500, 502, 503, 504 | Quota errors use 429 with specific error messages |
+| OpenAI | 429, 500, 502, 503 | Rate limits differ by org tier |
+| Bedrock | 429, 500, 503 | Throttling uses 429 with `ThrottlingException` |
+
+For long-running systems (CI agents, queue workers), add workqueue-level requeue when inner retries are
+exhausted:
+
+```typescript
+export async function withRetryAndRequeue<T>(
+  fn: () => Promise<T>,
+  opts: { maxRetries?: number; baseDelayMs?: number; onExhausted?: () => void } = {},
+): Promise<T> {
+  try {
+    return await withRetry(fn, opts);
+  } catch (error) {
+    opts.onExhausted?.();
+    throw error;
+  }
+}
 ```
 
 ### Rate Limit Awareness
@@ -538,20 +762,83 @@ export function truncateMessages(messages: ModelMessage[]): ModelMessage[] {
 
 ### Prompt Caching
 
-System prompts and tool definitions are identical across calls — cache them to reduce cost and rate limit
-pressure. The AI SDK supports provider-specific caching. For Anthropic:
+System prompts and tool definitions are identical across turns — cache them to cut input costs up to 90%.
+Cache breakpoint placement strategy differs by provider.
+
+#### Anthropic (direct and Vertex AI)
+
+Place cache breakpoints on tool definitions and system prompt. Breakpoints mark the boundary of cacheable
+content — everything before the breakpoint is cached:
 
 ```typescript
+import { anthropic } from "@ai-sdk/anthropic";
+
 const result = await generateText({
   model: anthropic("claude-sonnet-4-6", { cacheControl: true }),
-  system: config.system,  // cached after first call
+  system: [
+    { type: "text", text: config.system, providerOptions: { anthropic: { cacheControl: { type: "ephemeral" } } } },
+  ],
   messages,
-  tools,  // cached after first call
+  tools,
   stopWhen: stepCountIs(config.maxSteps),
 });
 ```
 
-Cached tokens do not count toward input TPM limits on most providers.
+Sort tool definitions alphabetically before passing to the SDK — this produces a stable cache key across
+invocations. Unsorted tools create different cache entries for semantically identical tool sets.
+
+#### Cache pricing (Anthropic)
+
+| Token type | Price multiplier | Meaning |
+| ---------- | --------------- | ------- |
+| Cache read | 0.1x input price | Hit: previously cached content |
+| Cache creation | 1.25x input price | Miss: content cached for future use |
+| Uncached input | 1.0x input price | Content not marked for caching |
+
+Cache TTL is 5 minutes on Anthropic. Minimum cacheable prefix is 1024 tokens (Sonnet/Haiku) or 2048 tokens
+(Opus).
+
+**Update cost tracking for cache-aware pricing:**
+
+```typescript
+export interface CacheAwarePricing extends ModelPricing {
+  cacheReadPerMillion: number;
+  cacheCreationPerMillion: number;
+}
+
+const PRICING: Record<string, CacheAwarePricing> = {
+  "claude-sonnet-4-6": {
+    inputPerMillion: 3, outputPerMillion: 15,
+    cacheReadPerMillion: 0.3, cacheCreationPerMillion: 3.75,
+  },
+  "claude-opus-4-7": {
+    inputPerMillion: 15, outputPerMillion: 75,
+    cacheReadPerMillion: 1.5, cacheCreationPerMillion: 18.75,
+  },
+};
+
+export function calculateCostWithCache(
+  model: string,
+  inputTokens: number,
+  outputTokens: number,
+  cacheReadTokens: number,
+  cacheCreationTokens: number,
+): UsageRecord {
+  const pricing = PRICING[model];
+  if (!pricing) throw new Error(`No pricing for model "${model}"`);
+
+  const uncachedInput = inputTokens - cacheReadTokens - cacheCreationTokens;
+  const costUsd =
+    (uncachedInput / 1_000_000) * pricing.inputPerMillion +
+    (outputTokens / 1_000_000) * pricing.outputPerMillion +
+    (cacheReadTokens / 1_000_000) * pricing.cacheReadPerMillion +
+    (cacheCreationTokens / 1_000_000) * pricing.cacheCreationPerMillion;
+
+  return { inputTokens, outputTokens, totalTokens: inputTokens + outputTokens, costUsd, model };
+}
+```
+
+Cached tokens do not count toward input TPM limits on Anthropic.
 
 ## Graceful Degradation
 
@@ -636,6 +923,80 @@ prompts/
 ├── v2.md    # After first round of eval feedback
 └── current  # Symlink to active version
 ```
+
+### Prompt Templating
+
+Use typed templates instead of string concatenation for system prompts. Templates are immutable — each bind
+returns a new prompt, preventing accidental mutation:
+
+```typescript
+// src/prompt.ts
+export class Prompt {
+  private constructor(private template: string) {}
+
+  static from(template: string): Prompt {
+    const unclosed = template.match(/\{\{[^}]*$/m);
+    if (unclosed) throw new Error(`Unclosed placeholder in template: ${unclosed[0]}`);
+    return new Prompt(template);
+  }
+
+  bind(key: string, value: string): Prompt {
+    const placeholder = `{{${key}}}`;
+    if (!this.template.includes(placeholder)) {
+      throw new Error(`Unknown placeholder: ${placeholder}`);
+    }
+    return new Prompt(this.template.replaceAll(placeholder, value));
+  }
+
+  bindJSON<T>(key: string, value: T): Prompt {
+    return this.bind(key, JSON.stringify(value, null, 2));
+  }
+
+  bindXML<T extends Record<string, unknown>>(key: string, value: T): Prompt {
+    const xml = Object.entries(value)
+      .map(([k, v]) => `<${k}>${String(v)}</${k}>`)
+      .join("\n");
+    return this.bind(key, xml);
+  }
+
+  toString(): string {
+    const remaining = this.template.match(/\{\{\w+\}\}/g);
+    if (remaining) {
+      throw new Error(`Unbound placeholders: ${remaining.join(", ")}`);
+    }
+    return this.template;
+  }
+}
+```
+
+Usage:
+
+```typescript
+const systemPrompt = Prompt.from(`You are a {{role}} assistant.
+
+Context:
+{{context}}
+
+Rules:
+- Only answer questions about {{domain}}
+- Use {{format}} format for responses`);
+
+const bound = systemPrompt
+  .bind("role", "code review")
+  .bindJSON("context", { repo: "my-app", branch: "main" })
+  .bind("domain", "code quality")
+  .bind("format", "markdown");
+
+const result = await generateText({
+  model: createModel(),
+  system: bound.toString(),
+  messages,
+  tools,
+});
+```
+
+Templates catch common prompt bugs at construction time: unclosed placeholders, unknown keys, and unbound
+variables. Use `bindJSON` for structured data and `bindXML` for data that models parse well in XML format.
 
 ### Prompt Versioning
 
@@ -808,6 +1169,70 @@ export async function generateValidated<T extends z.ZodTypeAny>(
 }
 ```
 
+## Structured Output Enforcement
+
+`Output.object()` works for simple cases, but models may still respond with free text instead of calling the
+structured output tool. For agents where output schema compliance is critical, use a submit-result tool
+pattern that forces the model to produce structured output via tool use:
+
+```typescript
+// src/tools/submit-result.ts
+import { tool } from "ai";
+import { z } from "zod";
+
+export function createSubmitResultTool<T extends z.ZodTypeAny>(schema: T) {
+  return tool({
+    description: "Submit your final structured result. You MUST call this tool to provide your answer.",
+    inputSchema: z.object({
+      reasoning: z.string().describe("Brief explanation of your confidence and approach"),
+      result: schema,
+    }),
+    execute: async ({ reasoning, result }) => {
+      return { submitted: true, reasoning, result };
+    },
+  });
+}
+```
+
+Wire it into the agent loop:
+
+```typescript
+import { createSubmitResultTool } from "./tools/submit-result.js";
+
+const ResultSchema = z.object({
+  severity: z.enum(["low", "medium", "high", "critical"]),
+  findings: z.array(z.object({
+    file: z.string(),
+    line: z.number(),
+    message: z.string(),
+  })),
+  summary: z.string(),
+});
+
+const submitResult = createSubmitResultTool(ResultSchema);
+
+const result = await generateText({
+  model: createModel(),
+  system: `${config.system}\n\nYou MUST call the submitResult tool to provide your final answer.`,
+  messages,
+  tools: { ...tools, submitResult },
+  stopWhen: stepCountIs(config.maxSteps),
+});
+
+const submitted = result.steps
+  .flatMap((s) => s.toolResults)
+  .find((r) => r.toolName === "submitResult");
+
+if (!submitted) {
+  throw new Error("Agent did not submit structured result");
+}
+
+return submitted.output;
+```
+
+The `reasoning` field serves dual purpose: it improves output quality (chain-of-thought before committing to
+an answer) and provides an audit trail for debugging.
+
 ## OpenTelemetry Setup
 
 ```typescript
@@ -844,6 +1269,80 @@ export function withSpan<T>(name: string, fn: () => Promise<T>): Promise<T> {
   });
 }
 ```
+
+## Bounded OTel Cardinality
+
+Unbounded metric attributes create unbounded time series, which crash monitoring backends and inflate costs.
+Only use bounded-cardinality attributes on metrics. High-cardinality data belongs on trace spans only:
+
+| Attribute | Metrics | Traces | Why |
+| --------- | ------- | ------ | --- |
+| `model` | Yes | Yes | Small fixed set |
+| `provider` | Yes | Yes | Small fixed set |
+| `agent_name` | Yes | Yes | Small fixed set |
+| `tool_name` | Yes | Yes | Bounded by tool registry |
+| `status_code` | Yes | Yes | Small fixed set (200, 400, 429, 500, etc.) |
+| `session_id` | No | Yes | Unique per session — unbounded |
+| `run_id` | No | Yes | Unique per request — unbounded |
+| `commit_sha` | No | Yes | Changes per commit — unbounded |
+| `user_id` | No | Yes | Grows with user base — unbounded |
+| `prompt_text` | No | Yes | Unique per request — unbounded |
+
+```typescript
+// src/telemetry.ts
+const METRIC_SAFE_ATTRIBUTES = ["model", "provider", "agent_name", "tool_name", "status_code"] as const;
+
+export function metricAttributes(attrs: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(attrs).filter(([key]) =>
+      (METRIC_SAFE_ATTRIBUTES as readonly string[]).includes(key),
+    ),
+  );
+}
+```
+
+### Resource Labels for Billing
+
+Attach team, service, and product labels to every API call. These flow through to billing dashboards for cost
+attribution:
+
+```typescript
+// src/provider.ts
+export function getResourceLabels(): Record<string, string> {
+  return {
+    service_name: process.env.SERVICE_NAME ?? "unknown",
+    team: process.env.TEAM ?? "unknown",
+    product: process.env.PRODUCT ?? "unknown",
+  };
+}
+```
+
+Pass labels via provider options where supported. For Vertex AI, use `labels` on the API request. For
+observability, attach them as OTel resource attributes so cost queries can group by team/product.
+
+### Payload Emission Gating
+
+Raw prompt and completion text on OTel spans enables powerful debugging but risks leaking PII or sensitive
+data to observability backends. Gate payload emission behind an explicit opt-in:
+
+```typescript
+// src/telemetry.ts
+const PAYLOADS_ENABLED = process.env.OTEL_EMIT_PAYLOADS === "true";
+
+export function spanPayloadAttributes(
+  prompt: string,
+  completion: string,
+): Record<string, string> {
+  if (!PAYLOADS_ENABLED) return {};
+  return {
+    "gen_ai.prompt": prompt.slice(0, 10_000),
+    "gen_ai.completion": completion.slice(0, 10_000),
+  };
+}
+```
+
+Default to off in production. Enable selectively for debugging sessions. Truncate payloads to prevent span
+size limits from being exceeded.
 
 ## Project Templates
 
@@ -936,5 +1435,8 @@ Generate config with `bunx biome init`, then customize. If biome version mismatc
 
 See also:
 
-- [REFERENCE-EVALS.md](REFERENCE-EVALS.md) — scorers, cost tracking, trajectory evaluation, regression detection
+- [REFERENCE-EVALS.md](REFERENCE-EVALS.md) — scorers, toolcall regression evals, duplicate call detection, cost
+  tracking, trajectory evaluation, regression detection
 - [REFERENCE-FEEDBACK.md](REFERENCE-FEEDBACK.md) — feedback collection, A/B testing, experiment runner
+- [REFERENCE-RAG.md](REFERENCE-RAG.md) — embedding, chunking, vector store, retrieval, agent integration, namespace
+  filtering, RAG evals

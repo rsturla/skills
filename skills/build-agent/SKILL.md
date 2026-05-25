@@ -3,8 +3,10 @@ name: build-agent
 description: >
   Build TypeScript AI agents with eval framework, provider abstraction, and production guardrails. Uses Vercel AI SDK
   for model-agnostic tool-use loops, Zod for structured outputs, Vitest for evals, and OpenTelemetry for observability.
-  Use when the user wants to build an agent, create an AI assistant, implement tool-use, or scaffold an agentic
-  system — even if they just say "build a bot", "add AI to this", or "make it agentic."
+  Covers prompt caching, extended thinking, RAG pipelines, structured output enforcement, tool annotations, seed tool
+  calls, toolcall regression evals, and duplicate call detection. Use when the user wants to build an agent, create an
+  AI assistant, implement tool-use, or scaffold an agentic system — even if they just say "build a bot", "add AI to
+  this", or "make it agentic."
 compatibility: Requires Bun (runtime + package manager), git.
 allowed-tools:
   - Bash(bun *)
@@ -493,9 +495,13 @@ Present the complete file tree and ask user to review before any further work. S
 
 See also:
 
-- [REFERENCE.md](REFERENCE.md) — retry/rate limits, streaming, tool validation, context management, graceful
-  degradation, config/prompt versioning, session security, manual loop, guardrails, multi-agent, OTel, templates
-- [REFERENCE-EVALS.md](REFERENCE-EVALS.md) — scorers, hallucination detection, safety evals, statistical rigor,
-  scorer composition, CI integration, regression detection
+- [REFERENCE.md](REFERENCE.md) — extended thinking, tool annotations, seed tool calls, prompt caching, prompt
+  templating, structured output enforcement, retry/rate limits, streaming, tool validation, context management,
+  graceful degradation, config/prompt versioning, session security, manual loop, guardrails, multi-agent, OTel
+  cardinality, resource labels, payload gating, templates
+- [REFERENCE-EVALS.md](REFERENCE-EVALS.md) — scorers, toolcall regression evals, duplicate call detection,
+  hallucination detection, safety evals, statistical rigor, scorer composition, CI integration, regression detection
 - [REFERENCE-FEEDBACK.md](REFERENCE-FEEDBACK.md) — FeedbackSchema, storage backends, secured API endpoint,
   implicit signals, human review gate, feedback-to-evals, A/B testing
+- [REFERENCE-RAG.md](REFERENCE-RAG.md) — embedding, chunking, vector store, retrieval, agent integration, namespace
+  filtering, RAG evals, cost considerations

@@ -105,6 +105,229 @@ export function trajectoryScore(expectedTools: string[]) {
 }
 ```
 
+## Toolcall Regression Evals
+
+Agents make systematic tool-use mistakes. Catch these with deterministic evals that run on every PR (free
+tier):
+
+### Hallucinated Paths
+
+Agents invent file paths that don't exist. Detect by checking tool results for "no such file" errors:
+
+```typescript
+// evals/scorers.ts
+import type { StepResult, ToolSet } from "ai";
+
+export function noHallucinatedPaths<T extends ToolSet>() {
+  return (steps: StepResult<T>[]) => {
+    const hallucinated: string[] = [];
+
+    for (const step of steps) {
+      for (const result of step.toolResults) {
+        const output = JSON.stringify(result.output);
+        if (output.includes("no such file or directory") || output.includes("ENOENT")) {
+          const call = step.toolCalls.find((c) => c.toolCallId === result.toolCallId);
+          const path = (call?.input as Record<string, unknown>)?.path ?? "unknown";
+          hallucinated.push(`${result.toolName}(${path})`);
+        }
+      }
+    }
+
+    return {
+      score: hallucinated.length === 0 ? 1 : 0,
+      detail: hallucinated.length > 0
+        ? `Hallucinated paths: ${hallucinated.join(", ")}`
+        : "No hallucinated paths",
+    };
+  };
+}
+```
+
+### Directory-as-File
+
+Agents pass directory paths to file-reading tools:
+
+```typescript
+export function noReadFileOnDirectory<T extends ToolSet>() {
+  return (steps: StepResult<T>[]) => {
+    const violations: string[] = [];
+
+    for (const step of steps) {
+      for (const result of step.toolResults) {
+        const output = JSON.stringify(result.output);
+        if (
+          result.toolName === "readFile" &&
+          (output.includes("EISDIR") || output.includes("is a directory"))
+        ) {
+          const call = step.toolCalls.find((c) => c.toolCallId === result.toolCallId);
+          violations.push(String((call?.input as Record<string, unknown>)?.path));
+        }
+      }
+    }
+
+    return {
+      score: violations.length === 0 ? 1 : 0,
+      detail: violations.length > 0
+        ? `Read directory as file: ${violations.join(", ")}`
+        : "No directory-as-file errors",
+    };
+  };
+}
+```
+
+### Fabricated Edit Strings
+
+Agents invent `old_string` values that don't exist in the target file when using edit tools:
+
+```typescript
+export function editStringExists<T extends ToolSet>() {
+  return (steps: StepResult<T>[]) => {
+    const fabricated: string[] = [];
+
+    for (const step of steps) {
+      for (const result of step.toolResults) {
+        if (result.toolName !== "editFile") continue;
+        const output = JSON.stringify(result.output);
+        if (output.includes("old_string not found") || output.includes("no match")) {
+          fabricated.push(result.toolCallId);
+        }
+      }
+    }
+
+    return {
+      score: fabricated.length === 0 ? 1 : Math.max(0, 1 - fabricated.length * 0.25),
+      detail: fabricated.length > 0
+        ? `${fabricated.length} edit(s) with fabricated old_string`
+        : "All edit strings matched",
+    };
+  };
+}
+```
+
+### Invalid Regex
+
+Agents submit invalid regex patterns to search tools:
+
+```typescript
+export function validRegexPatterns<T extends ToolSet>() {
+  return (steps: StepResult<T>[]) => {
+    const invalid: string[] = [];
+
+    for (const step of steps) {
+      for (const call of step.toolCalls) {
+        if (call.toolName !== "searchCodebase") continue;
+        const pattern = (call.input as Record<string, unknown>)?.pattern;
+        if (typeof pattern === "string") {
+          try { new RegExp(pattern); }
+          catch { invalid.push(pattern); }
+        }
+      }
+    }
+
+    return {
+      score: invalid.length === 0 ? 1 : 0,
+      detail: invalid.length > 0
+        ? `Invalid regex: ${invalid.join(", ")}`
+        : "All regex patterns valid",
+    };
+  };
+}
+```
+
+### Composing Regression Evals
+
+Bundle all regression scorers into a single eval that runs on every agent execution:
+
+```typescript
+// evals/regressions.eval.ts
+import { describe, it, expect } from "vitest";
+import { runAgent } from "../src/agent.js";
+import {
+  noHallucinatedPaths, noReadFileOnDirectory,
+  editStringExists, validRegexPatterns,
+} from "./scorers.js";
+
+const agentConfig = { system: "...", maxSteps: 15 };
+
+describe("toolcall regressions", () => {
+  it("does not hallucinate file paths", async () => {
+    const result = await runAgent("List all TypeScript files in src/", agentConfig);
+    expect(noHallucinatedPaths()(result.steps).score).toBe(1);
+  });
+
+  it("does not read directories as files", async () => {
+    const result = await runAgent("Show me the contents of src/tools", agentConfig);
+    expect(noReadFileOnDirectory()(result.steps).score).toBe(1);
+  });
+
+  it("uses valid edit strings", async () => {
+    const result = await runAgent("Rename the main function to run", agentConfig);
+    expect(editStringExists()(result.steps).score).toBeGreaterThanOrEqual(0.75);
+  });
+});
+```
+
+These evals are deterministic (no LLM judge needed) and should run on every PR as gate evals.
+
+## Duplicate Call Detection
+
+Agents sometimes call the same tool with identical arguments repeatedly, wasting tokens and API calls. Track
+and score duplicate detection:
+
+```typescript
+// evals/scorers.ts
+export function noDuplicateToolCalls<T extends ToolSet>(opts?: { allowedDuplicates?: string[] }) {
+  return (steps: StepResult<T>[]) => {
+    const seen = new Map<string, number>();
+    const duplicates: string[] = [];
+    const allowed = new Set(opts?.allowedDuplicates ?? []);
+
+    for (const step of steps) {
+      for (const call of step.toolCalls) {
+        if (allowed.has(call.toolName)) continue;
+        const fingerprint = `${call.toolName}:${JSON.stringify(call.input)}`;
+        const count = (seen.get(fingerprint) ?? 0) + 1;
+        seen.set(fingerprint, count);
+        if (count === 2) duplicates.push(call.toolName);
+      }
+    }
+
+    return {
+      score: duplicates.length === 0 ? 1 : Math.max(0, 1 - duplicates.length * 0.2),
+      detail: duplicates.length > 0
+        ? `Duplicate calls: ${duplicates.join(", ")}`
+        : "No duplicate tool calls",
+    };
+  };
+}
+```
+
+For runtime protection (not just eval scoring), add duplicate detection to the agent loop itself:
+
+```typescript
+// src/dedup.ts
+export class ToolCallDeduplicator {
+  private seen = new Map<string, unknown>();
+
+  check(toolName: string, args: unknown): { duplicate: boolean; previousResult?: unknown } {
+    const key = `${toolName}:${JSON.stringify(args)}`;
+    if (this.seen.has(key)) {
+      return { duplicate: true, previousResult: this.seen.get(key) };
+    }
+    return { duplicate: false };
+  }
+
+  record(toolName: string, args: unknown, result: unknown): void {
+    const key = `${toolName}:${JSON.stringify(args)}`;
+    this.seen.set(key, result);
+  }
+}
+```
+
+When a duplicate is detected at runtime, return the cached result instead of re-executing the tool. This
+saves API calls and prevents infinite loops where the model keeps calling the same tool expecting different
+results.
+
 ## Eval Cost Tracking
 
 Every eval records cost. `recordEval` is called from every eval case (see SKILL.md examples).
