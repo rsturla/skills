@@ -42,13 +42,25 @@ Create worktrees sorted by conventional commit type at the repo root, with branc
    ```
 
    `git-common-dir` returns `.bare` (bare repo) or `.git` (normal repo). Parent of either is the repo root.
-5. **Create worktree** — always relative to repo root:
+5. **Detect default branch** — find remote HEAD, don't hardcode `main`:
 
    ```bash
-   git worktree-add "${REPO_ROOT}/<type>/<change>" -b dev/robertsturla/<change>
+   DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD | sed 's|refs/remotes/origin/||')
    ```
 
-6. **Report** — show created path and branch name.
+6. **Fetch latest default branch** — ensure worktree starts from up-to-date ref, not stale local:
+
+   ```bash
+   git fetch origin "$DEFAULT_BRANCH"
+   ```
+
+7. **Create worktree** — always relative to repo root, based on `origin/<default>`:
+
+   ```bash
+   git worktree-add "${REPO_ROOT}/<type>/<change>" -b dev/robertsturla/<change> "origin/${DEFAULT_BRANCH}"
+   ```
+
+8. **Report** — show created path and branch name.
 
 ## Examples
 
@@ -56,7 +68,9 @@ User: `/new-worktree feat create-monitoring-service`
 
 ```bash
 REPO_ROOT=$(realpath "$(git rev-parse --git-common-dir)/..")
-git worktree-add "${REPO_ROOT}/feat/create-monitoring-service" -b dev/robertsturla/create-monitoring-service
+DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD | sed 's|refs/remotes/origin/||')
+git fetch origin "$DEFAULT_BRANCH"
+git worktree-add "${REPO_ROOT}/feat/create-monitoring-service" -b dev/robertsturla/create-monitoring-service "origin/${DEFAULT_BRANCH}"
 ```
 
 Result: worktree at `<repo-root>/feat/create-monitoring-service`, branch
@@ -65,13 +79,15 @@ Result: worktree at `<repo-root>/feat/create-monitoring-service`, branch
 User: `/new-worktree fix resolve-auth-timeout`
 
 ```bash
-git worktree-add "${REPO_ROOT}/fix/resolve-auth-timeout" -b dev/robertsturla/resolve-auth-timeout
+git fetch origin "$DEFAULT_BRANCH"
+git worktree-add "${REPO_ROOT}/fix/resolve-auth-timeout" -b dev/robertsturla/resolve-auth-timeout "origin/${DEFAULT_BRANCH}"
 ```
 
 User: `/new-worktree chore update-dependencies`
 
 ```bash
-git worktree-add "${REPO_ROOT}/chore/update-dependencies" -b dev/robertsturla/update-dependencies
+git fetch origin "$DEFAULT_BRANCH"
+git worktree-add "${REPO_ROOT}/chore/update-dependencies" -b dev/robertsturla/update-dependencies "origin/${DEFAULT_BRANCH}"
 ```
 
 ## Gotchas
@@ -81,5 +97,7 @@ git worktree-add "${REPO_ROOT}/chore/update-dependencies" -b dev/robertsturla/up
 - `git rev-parse --show-toplevel` returns wrong path in bare repos. Always use
   `realpath "$(git rev-parse --git-common-dir)/.."` to find repo root.
 - If a worktree or branch already exists, report the conflict and ask the user — don't overwrite.
+- If `git symbolic-ref refs/remotes/origin/HEAD` fails (no `origin/HEAD` set), run
+  `git remote set-head origin --auto` first, then retry.
 - Branch always prefixed `dev/robertsturla/`. Change name used for both directory suffix and branch suffix — they
   always match.
