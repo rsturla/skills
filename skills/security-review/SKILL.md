@@ -143,4 +143,5 @@ Merge all agent results into a single report, deduplicate, and sort by severity.
 - `gh pr diff` / `glab mr diff` require authenticated CLI and a PR/MR context. Falls back to branch diff if unavailable.
 - Supply chain agent is most useful when `go.sum`, `Cargo.lock`, or `requirements.txt` are in the diff.
 - If the `dependency-audit` skill is available, delegate deep supply chain analysis to it and keep Agent 3 lightweight.
-- If running alongside `code-review`, this skill owns security findings. Let code-review focus on design and correctness.
+- If running alongside `code-quality-review`, this skill owns security findings. Let code-quality-review focus on
+  maintainability and structure.
