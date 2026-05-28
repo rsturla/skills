@@ -1,9 +1,10 @@
 ---
 name: code-review
 description: >
-  Comprehensive code review using multiple specialized agents. Checks architecture, error handling, naming, testing,
-  and style against project conventions. Use when the user asks for a code review, says "review this", "check my
-  code", or wants feedback on changes — even if they just say "what do you think?" about a diff.
+  Strict multi-agent code review for maintainability, correctness, and project conventions. Pushes code-judo
+  simplification, boundary cleanliness, and anti-spaghetti structure — not cosmetic nits. Use when the user asks
+  for a code review, maintainability audit, or feedback on a diff or PR — even if they just say "what do you think?"
+  or "review this".
 compatibility: Requires git. Optional gh CLI for GitHub PRs, glab CLI for GitLab MRs.
 allowed-tools:
   - Bash(git *)
@@ -15,112 +16,132 @@ allowed-tools:
   - Agent
 metadata:
   author: rsturla
-  version: 1.0.0
+  version: 2.0.0
 ---
 
 # Code Review
 
-Multi-agent code review that produces actionable findings aligned with project conventions.
+Multi-agent review: gather diff and context once, run three parallel specialists, merge into one prioritized report.
+Behavior-correct code that makes the codebase messier is **not** enough to approve.
 
 ## Process
 
-1. Detect review target (staged changes, branch diff, or PR)
-2. Identify language and load relevant coding guidelines
-3. Launch 3 specialized agents in parallel
-4. Consolidate findings into a single report
+1. Detect review target and collect diff + changed file paths
+2. Read full contents of changed files and load language guidelines (Step 2)
+3. Launch three agents in parallel with shared context (Step 3)
+4. Merge, dedupe, and output in priority order (Step 4)
 
 ## Step 1: Detect Review Target
 
 ```bash
-# Check for staged changes first
+# Staged changes first
 if [ -n "$(git diff --cached --name-only)" ]; then
     DIFF_CMD="git diff --cached"
     TARGET="staged changes"
-# Check for GitHub PR
 elif gh pr view --json number &>/dev/null 2>&1; then
     DIFF_CMD="gh pr diff"
     TARGET="PR #$(gh pr view --json number -q .number)"
-# Check for GitLab MR
 elif glab mr view &>/dev/null 2>&1; then
     DIFF_CMD="glab mr diff"
     TARGET="MR !$(glab mr view --output json 2>/dev/null | jq -r .iid)"
-# Fall back to branch diff vs main
 else
     BASE=$(git merge-base HEAD origin/main 2>/dev/null || echo "origin/main")
     DIFF_CMD="git diff $BASE...HEAD"
     TARGET="branch $(git branch --show-current) vs main"
 fi
+
+DIFF=$($DIFF_CMD)
+CHANGED_FILES=$($DIFF_CMD --name-only)
 ```
 
-## Step 2: Identify Language
+For diffs over ~500 lines, review file-by-file instead of one giant prompt.
 
-Detect from changed files:
+## Step 2: Context
 
-- `.go` → apply Go Coding Guidelines
-- `.rs` → apply Rust Coding Guidelines
-- `.py` → apply Python Coding Guidelines
-- `.tf`, `.hcl` → apply OpenTofu + Terragrunt Guidelines
-- `Containerfile` → apply Containerfile Guidelines
-- `.yml`, `.yaml` in `.github/workflows/` → apply GitHub Actions Guidelines
+Read each changed file in full (agents see the diff, not always enough surrounding code).
 
-Read the relevant guidelines by following the links in the Language Guides section of AGENTS.md (already in your
-context). Pass the guidelines content to each agent so they can check against project conventions.
+Detect language from extensions and load guidelines from AGENTS.md Language Guides:
 
-## Step 3: Launch Specialized Agents
+| Extension / path | Guidelines |
+| --- | --- |
+| `.go` | Go Coding Guidelines |
+| `.rs` | Rust Coding Guidelines |
+| `.py` | Python Coding Guidelines |
+| `.tf`, `.hcl` | OpenTofu + Terragrunt Guidelines |
+| `Containerfile` | Containerfile Guidelines |
+| `.github/workflows/*` | GitHub Actions Guidelines |
 
-Launch **3 agents in parallel** using the Agent tool. Include the full diff output, changed file list, and relevant
-guidelines content in each agent's prompt.
+Pass guideline excerpts into every agent prompt.
 
-### Agent 1: Architecture & Design
+## Rubric
 
-Prompt:
+Apply to everything the diff touches. Trace cross-file impact at module boundaries.
 
-> Review this diff for architectural issues. Check for:
->
-> - Interface design: are interfaces defined at the consumer? Are they small (1-3 methods)?
-> - Dependency direction: do modules depend on abstractions, not concrete implementations?
-> - Package/module boundaries: is the change in the right place? Should it be extracted?
-> - Error handling: are errors wrapped with context? Are they handled at the right level?
-> - Missing abstractions: should a new interface be introduced for pluggability?
-> - Over-engineering: unnecessary abstractions, premature generalization, dead code
->
-> Reference the project conventions loaded in Step 2.
-> For each finding: file, line, issue, suggestion.
+**Ambition** — search for code-judo: same behavior, fewer branches, layers, or concepts. Prefer deleting complexity over
+moving it. Do not stop at "slightly cleaner."
 
-### Agent 2: Correctness & Edge Cases
+**Structure** — file size, layering, and branching:
 
-Prompt:
+- No file crossing ~1000 lines without strong justification; decompose first when the PR pushes a file over the line.
+- No ad-hoc conditionals bolted onto busy shared paths; use a dedicated abstraction, policy, or module.
+- Logic in the canonical layer; reuse existing helpers instead of near-duplicates.
+- Abstractions must earn their keep — no thin wrappers, identity types, or pass-through indirection.
+- Prefer explicit types and contracts over `any`, heavy casts, or optionality that hides invariants.
 
-> Review this diff for bugs, correctness issues, and missing edge cases. Check for:
->
-> - Nil/null handling: unchecked returns, nil pointer dereferences, Option unwraps
-> - Concurrency: race conditions, missing locks, goroutine leaks, unsynchronized shared state
-> - Resource leaks: unclosed files, connections, HTTP bodies
-> - Off-by-one errors in loops, slices, pagination
-> - Missing error paths: what happens when this fails?
-> - Incomplete migrations: renamed function but callers not updated, partial refactors
->
-> For each finding: file, line, bug description, severity (BUG/RISK/NITPICK), and fix.
+**Correctness** — nil/null, concurrency, resource leaks, off-by-one, missing error paths, incomplete refactors.
 
-### Agent 3: Style & Conventions
+**Conventions** — naming, file placement, meaningful tests, API shape per project docs.
 
-Prompt:
+**Orchestration** — flag unnecessary serialization of independent work or non-atomic partial updates when a simpler
+structure is obvious (not micro-optimization nits).
 
-> Review this diff against project coding conventions. Check for:
->
-> - Naming: follows language conventions? Consistent with existing codebase?
-> - File organization: code in the right file? Functions in logical order?
-> - Comments: unnecessary comments explaining what (not why)? Missing comments for non-obvious behavior?
-> - Testing: are new code paths tested? Are tests meaningful (not just coverage padding)?
-> - Commit hygiene: is this one logical change or multiple changes mixed together?
-> - API design: follows project API guidelines? Consistent with existing endpoints?
->
-> Reference the project conventions loaded in Step 2.
-> For each finding: file, line, convention violated, suggestion.
+When `security-review` runs in parallel, skip secrets, auth, and injection — this skill owns design and
+maintainability only.
 
-## Step 4: Consolidate Findings
+## Step 3: Launch Agents
 
-Merge all agent results. Categorize and sort:
+Use the Agent tool. **One message, three parallel calls.** Each prompt must include:
+
+- `### Git / diff output` — full `DIFF`
+- `### Changed files` — list from `CHANGED_FILES`
+- `### File contents` — full text of changed files you read
+- `### Guidelines` — relevant convention excerpts
+- Instruction to apply only the **Rubric** sections named for that agent
+
+### Agent 1: Structure and maintainability
+
+Rubric sections: Ambition, Structure, Orchestration.
+
+For each finding: file, line, issue, concrete restructuring suggestion. High conviction; skip cosmetic nits when
+structural problems exist.
+
+### Agent 2: Correctness and edge cases
+
+Rubric section: Correctness.
+
+For each finding: file, line, description, severity (`BUG` / `RISK` / `NITPICK`), fix.
+
+### Agent 3: Conventions and style
+
+Rubric sections: Conventions (+ Structure only where it overlaps naming, placement, or API shape).
+
+For each finding: file, line, convention violated, suggestion.
+
+## Step 4: Consolidate
+
+Merge agent output. Deduplicate. Sort findings into the sections below — **do not** bury structural issues under
+style nits.
+
+### Approval bar
+
+Block approval when any of these are visible and unjustified:
+
+- Plausible code-judo simplification was skipped; incidental complexity preserved
+- File grew past ~1000 lines without decomposition
+- Feature logic scattered across shared paths as special-case branches
+- New wrapper, cast-heavy contract, or wrong-layer logic with a clear canonical home elsewhere
+
+"Works" alone is insufficient.
 
 ## Output Format
 
@@ -128,30 +149,27 @@ Merge all agent results. Categorize and sort:
 ## Code Review: <target>
 
 ### Must Fix
-- **[BUG]** `pkg/store/postgres.go:89` — Connection not closed on error path. Add `defer conn.Close()`.
-- **[ARCH]** `internal/api/handler.go:15` — Handler directly imports Postgres package. Accept a `Repository` interface.
+- **[STRUCT]** `pkg/foo.go:120` — Special-case branch in shared handler. Move behind `OrderPolicy`.
+- **[BUG]** `pkg/store/postgres.go:89` — Connection not closed on error path. `defer conn.Close()`.
 
 ### Should Fix
-- **[STYLE]** `internal/service/order.go:42` — Function `DoThing` doesn't follow naming conventions. Use `ProcessOrder`.
-- **[EDGE-CASE]** `pkg/auth/token.go:67` — No check for expired token before database lookup. Add expiry check first.
+- **[MAINTAIN]** `internal/service/order.go:42` — 1.2k-line file after PR. Extract `billing` module first.
+- **[EDGE]** `pkg/auth/token.go:67` — Expiry not checked before DB lookup.
 
 ### Consider
-- **[NITPICK]** `cmd/server/main.go:23` — Unused import `log`. Remove.
-- **[TEST]** `internal/service/order_test.go` — New `CancelOrder` path has no test coverage.
+- **[STYLE]** `cmd/server/main.go:23` — Unused import. Remove.
+- **[TEST]** `internal/service/order_test.go` — `CancelOrder` path untested.
 
 ### Clean
-- Error handling follows conventions
-- Interface boundaries are well-defined
+- No obvious structural regression in touched modules
 ```
+
+Priority when merging (highest first): structural regression → missed simplification → spaghetti / branching growth →
+boundary and type-contract problems → file size / decomposition → modularity → legibility.
 
 ## Gotchas
 
-- Agents review the diff, not the full codebase. They may miss context from unchanged files. If a finding seems
-  wrong, check the surrounding code.
-- Pass the relevant language guidelines to each agent — without them, agents fall back to generic advice.
-- For large diffs (>500 lines), consider reviewing file-by-file instead of the full diff.
-- "Must Fix" vs "Should Fix" vs "Consider" is subjective. Calibrate based on team norms.
-- The style agent needs the project's AGENTS.md/CLAUDE.md conventions. Read them first.
-- If running alongside `security-review`, skip security-adjacent findings (secrets, auth, injection) and focus on
-  design, correctness, and conventions.
-- Performance issues (O(n^2) loops, N+1 queries, missing pagination) fall under Agent 2 (Correctness).
+- Agents only see what you pass. Wrong finding → read surrounding unchanged code before reporting.
+- Large diffs: split by file or package.
+- Performance (N+1, O(n²)) belongs in Agent 2 unless it is clearly a structural orchestration smell.
+- Calibrate Must / Should / Consider to team norms; default strict on structure, pragmatic on nits.
