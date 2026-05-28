@@ -10,7 +10,7 @@
     "./skills/investigate-cve",
     "./skills/dependency-audit",
     "./skills/security-review",
-    "./skills/code-review",
+    "./skills/code-quality-review",
     "./skills/scaffold-repo",
     "./skills/build-agent"
   ]

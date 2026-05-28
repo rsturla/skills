@@ -28,7 +28,7 @@ bunx skills add rsturla/skills --list
 | `investigate-cve` | Trace CVE to upstream fix commits, check backport status across branches |
 | `dependency-audit` | Audit deps for vulnerabilities, license issues, and supply chain risks |
 | `security-review` | Multi-agent security review — injection, auth, secrets, supply chain |
-| `code-review` | Multi-agent code review — architecture, correctness, style, conventions |
+| `code-quality-review` | Strict maintainability review — code-judo, boundaries, anti-spaghetti, approval bar |
 
 ## Recommended Third-Party Skills
 
@@ -96,6 +96,10 @@ Replace `/path/to/skills` with the absolute path to your clone of this repo (e.g
 
 All agents read through the symlinks at runtime — no copy or sync step needed. Changes to
 `AGENTS.md` or any file in `docs/` are immediately available to every configured agent.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
 
 ## Requirements
 
